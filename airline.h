@@ -60,5 +60,6 @@ void checkInPassenger();
 void processCheckInQueue();
 void initializeSampleData();
 void mainMenu();
+void analyzeRouteNetwork();
 
 #endif // AIRLINE_H

@@ -17,7 +17,7 @@ CheckInNode* checkInRear = NULL;
 
 #define MAX_ANALYSIS_AIRPORTS 40
 #define INF_WEIGHT 1e12
-#define APSP_FLOYD_THRESHOLD 18
+#define APSP_FLOYD_THRESHOLD 10
 
 typedef struct {
     int src;
@@ -37,6 +37,110 @@ typedef struct {
     double weight;
 } MSTResultEdge;
 
+typedef struct {
+    const char* src;
+    const char* dest;
+    double weight;
+} SampleEdge;
+
+typedef struct {
+    const char* name;
+    const char* description;
+    int airportCount;
+    int directed;
+    const char* const* airportNames;
+    const SampleEdge* edges;
+    int edgeCount;
+} SampleScenario;
+
+static const char* const SAMPLE_DENSE_NAMES[] = {"DEL", "BOM", "BLR", "HYD", "CCU", "PNQ"};
+static const SampleEdge SAMPLE_DENSE_EDGES[] = {
+    {"DEL", "BOM", 720}, {"DEL", "BLR", 1740}, {"DEL", "HYD", 1265}, {"DEL", "CCU", 1300}, {"DEL", "PNQ", 1440},
+    {"BOM", "BLR", 984}, {"BOM", "HYD", 710}, {"BOM", "CCU", 1650}, {"BOM", "PNQ", 148},
+    {"BLR", "HYD", 550}, {"BLR", "CCU", 1515}, {"BLR", "PNQ", 840},
+    {"HYD", "CCU", 1180}, {"HYD", "PNQ", 620},
+    {"CCU", "PNQ", 1655}
+};
+
+static const char* const SAMPLE_SPARSE_NAMES[] = {"SEA", "SFO", "LAX", "DEN", "ORD", "JFK", "ATL", "MIA"};
+static const SampleEdge SAMPLE_SPARSE_EDGES[] = {
+    {"SEA", "SFO", 679},
+    {"SFO", "LAX", 337},
+    {"LAX", "DEN", 1383},
+    {"DEN", "ORD", 1610},
+    {"ORD", "JFK", 1188},
+    {"JFK", "ATL", 760},
+    {"ATL", "MIA", 595}
+};
+
+static const char* const SAMPLE_SMALL_APSP_NAMES[] = {"BOS", "PHL", "DCA", "RDU"};
+static const SampleEdge SAMPLE_SMALL_APSP_EDGES[] = {
+    {"BOS", "PHL", 450},
+    {"PHL", "DCA", 225},
+    {"DCA", "RDU", 250},
+    {"RDU", "BOS", 615},
+    {"BOS", "DCA", 400},
+    {"PHL", "RDU", 500}
+};
+
+static const char* const SAMPLE_LARGE_APSP_NAMES[] = {
+    "LHR", "CDG", "FRA", "AMS", "MAD", "BCN", "FCO", "ZRH", "ARN", "IST", "ATH", "DUB", "CPH", "HEL", "OSL", "BRU"
+};
+static const SampleEdge SAMPLE_LARGE_APSP_EDGES[] = {
+    {"LHR", "CDG", 343}, {"LHR", "FRA", 655}, {"LHR", "AMS", 356}, {"LHR", "DUB", 449},
+    {"CDG", "FRA", 280}, {"CDG", "BCN", 515}, {"CDG", "BRU", 162},
+    {"FRA", "AMS", 365}, {"FRA", "ZRH", 305}, {"FRA", "BRU", 318},
+    {"AMS", "CPH", 620}, {"AMS", "BRU", 173}, {"AMS", "ARN", 721},
+    {"MAD", "BCN", 505}, {"MAD", "DUB", 1450}, {"MAD", "FCO", 1365},
+    {"BCN", "FCO", 855}, {"BCN", "IST", 2230},
+    {"FCO", "ATH", 653}, {"FCO", "IST", 1375},
+    {"ZRH", "IST", 1760}, {"ZRH", "CPH", 960},
+    {"ARN", "HEL", 397}, {"ARN", "OSL", 416},
+    {"IST", "ATH", 561}, {"IST", "HEL", 2143},
+    {"DUB", "BRU", 780},
+    {"CPH", "HEL", 782}, {"CPH", "OSL", 483},
+    {"HEL", "OSL", 785}
+};
+
+static const SampleScenario SAMPLE_SCENARIOS[] = {
+    {
+        "Dense hub network",
+        "High-frequency routes between the busiest Indian metros. Almost every city connects to every other, ideal for demonstrating Prim's MST on dense graphs.",
+        (int)(sizeof(SAMPLE_DENSE_NAMES) / sizeof(SAMPLE_DENSE_NAMES[0])),
+        0,
+        SAMPLE_DENSE_NAMES,
+        SAMPLE_DENSE_EDGES,
+        (int)(sizeof(SAMPLE_DENSE_EDGES) / sizeof(SAMPLE_DENSE_EDGES[0]))
+    },
+    {
+        "Sparse coast-to-coast corridor",
+        "A simple transcontinental chain of U.S. airports with just enough links to stay connected. Great for showcasing how Kruskal excels on sparse networks.",
+        (int)(sizeof(SAMPLE_SPARSE_NAMES) / sizeof(SAMPLE_SPARSE_NAMES[0])),
+        0,
+        SAMPLE_SPARSE_NAMES,
+        SAMPLE_SPARSE_EDGES,
+        (int)(sizeof(SAMPLE_SPARSE_EDGES) / sizeof(SAMPLE_SPARSE_EDGES[0]))
+    },
+    {
+        "Regional shuttle circuit",
+        "A four-airport directed loop along the U.S. east coast, perfect for demonstrating Floyd-Warshall on a compact network.",
+        (int)(sizeof(SAMPLE_SMALL_APSP_NAMES) / sizeof(SAMPLE_SMALL_APSP_NAMES[0])),
+        1,
+        SAMPLE_SMALL_APSP_NAMES,
+        SAMPLE_SMALL_APSP_EDGES,
+        (int)(sizeof(SAMPLE_SMALL_APSP_EDGES) / sizeof(SAMPLE_SMALL_APSP_EDGES[0]))
+    },
+    {
+        "Pan-European network",
+        "Sixteen major European hubs with many intercontinental legs. The graph is large enough that Johnson + Dijkstra becomes the recommended APSP strategy.",
+        (int)(sizeof(SAMPLE_LARGE_APSP_NAMES) / sizeof(SAMPLE_LARGE_APSP_NAMES[0])),
+        0,
+        SAMPLE_LARGE_APSP_NAMES,
+        SAMPLE_LARGE_APSP_EDGES,
+        (int)(sizeof(SAMPLE_LARGE_APSP_EDGES) / sizeof(SAMPLE_LARGE_APSP_EDGES[0]))
+    }
+};
+
 static RouteGraph createRouteGraph(int vertices, int directed);
 static void freeRouteGraph(RouteGraph* graph);
 static double** allocateMatrix(int n, double initial);
@@ -53,6 +157,8 @@ static void dijkstraReweighted(const RouteGraph* graph, double** reweighted, int
 static int disjointSetFind(int* parent, int v);
 static void disjointSetUnion(int* parent, int* rank, int a, int b);
 static int compareRouteEdges(const void* a, const void* b);
+static const SampleScenario* getSampleScenario(int option);
+static int populateSampleScenario(int option, RouteGraph* graph, char airportNames[][NAME_LEN], int* acceptedRoutes, const SampleScenario** scenarioOut);
 
 // Functions
 void addFlight() {
@@ -275,76 +381,163 @@ void mainMenu() {
     }
 }
 
+static const SampleScenario* getSampleScenario(int option) {
+    int scenarioCount = (int)(sizeof(SAMPLE_SCENARIOS) / sizeof(SAMPLE_SCENARIOS[0]));
+    if (option < 1 || option > scenarioCount) {
+        return NULL;
+    }
+    return &SAMPLE_SCENARIOS[option - 1];
+}
+
+static int populateSampleScenario(int option, RouteGraph* graph, char airportNames[][NAME_LEN], int* acceptedRoutes, const SampleScenario** scenarioOut) {
+    const SampleScenario* scenario = getSampleScenario(option);
+    if (!scenario || !graph || !airportNames || !acceptedRoutes) {
+        return 0;
+    }
+    *graph = createRouteGraph(scenario->airportCount, scenario->directed);
+    if (!graph->adjMatrix) {
+        return 0;
+    }
+    for (int i = 0; i < scenario->airportCount; ++i) {
+        strncpy(airportNames[i], scenario->airportNames[i], NAME_LEN - 1);
+        airportNames[i][NAME_LEN - 1] = '\0';
+    }
+    for (int i = scenario->airportCount; i < MAX_ANALYSIS_AIRPORTS; ++i) {
+        airportNames[i][0] = '\0';
+    }
+
+    for (int i = 0; i < scenario->edgeCount; ++i) {
+        int srcIndex = findAirportIndex(airportNames, scenario->airportCount, scenario->edges[i].src);
+        int destIndex = findAirportIndex(airportNames, scenario->airportCount, scenario->edges[i].dest);
+        if (srcIndex == -1 || destIndex == -1) {
+            continue;
+        }
+        double weight = scenario->edges[i].weight;
+        if (graph->adjMatrix[srcIndex][destIndex] > weight) {
+            graph->adjMatrix[srcIndex][destIndex] = weight;
+        }
+        if (!graph->directed && graph->adjMatrix[destIndex][srcIndex] > weight) {
+            graph->adjMatrix[destIndex][srcIndex] = weight;
+        }
+    }
+
+    *acceptedRoutes = scenario->edgeCount;
+    if (scenarioOut) {
+        *scenarioOut = scenario;
+    }
+    return scenario->airportCount;
+}
+
 void analyzeRouteNetwork() {
     printf("\n=== ROUTE NETWORK ANALYSIS ===\n");
-    int airportCount;
-    printf("Enter number of airports (2-%d): ", MAX_ANALYSIS_AIRPORTS);
-    if (scanf("%d", &airportCount) != 1) {
-        printf("Invalid input detected. Returning to main menu.\n");
-        return;
-    }
-    if (airportCount < 2 || airportCount > MAX_ANALYSIS_AIRPORTS) {
-        printf("Please choose a value between 2 and %d.\n", MAX_ANALYSIS_AIRPORTS);
-        return;
-    }
+    printf("Choose input mode:\n");
+    printf("  1. Demo dataset - Dense hub network (Prim showcase)\n");
+    printf("  2. Demo dataset - Sparse coast-to-coast corridor (Kruskal showcase)\n");
+    printf("  3. Demo dataset - Regional shuttle circuit (Floyd-Warshall showcase)\n");
+    printf("  4. Demo dataset - Pan-European network (Johnson showcase)\n");
+    printf("  5. Manual entry\n");
+    printf("Enter choice: ");
 
-    char airportNames[MAX_ANALYSIS_AIRPORTS][NAME_LEN];
-    for (int i = 0; i < airportCount; ++i) {
-        printf("Airport %d code: ", i + 1);
-        scanf("%31s", airportNames[i]);
-    }
-
-    int directedInput = 0;
-    printf("Are routes directed? (1 = Yes, 0 = No): ");
-    scanf("%d", &directedInput);
-
-    int routeCount;
-    printf("Enter number of flight routes: ");
-    scanf("%d", &routeCount);
-    if (routeCount <= 0) {
-        printf("At least one route is required for analysis.\n");
+    int mode;
+    if (scanf("%d", &mode) != 1) {
+        printf("Invalid selection. Returning to main menu.\n");
         return;
     }
 
-    RouteGraph graph = createRouteGraph(airportCount, directedInput ? 1 : 0);
+    RouteGraph graph;
+    graph.vertexCount = 0;
+    graph.directed = 0;
+    graph.adjMatrix = NULL;
+
+    int airportCount = 0;
     int acceptedRoutes = 0;
-    for (int index = 0; index < routeCount;) {
-        char srcName[NAME_LEN];
-        char destName[NAME_LEN];
-        double weight;
-        printf("\nRoute %d of %d\n", index + 1, routeCount);
-        printf("  Source airport code: ");
-        scanf("%31s", srcName);
-        printf("  Destination airport code: ");
-        scanf("%31s", destName);
-        printf("  Distance/Cost (positive number): ");
-        scanf("%lf", &weight);
+    char airportNames[MAX_ANALYSIS_AIRPORTS][NAME_LEN];
+    const SampleScenario* scenarioInfo = NULL;
 
-        int srcIndex = findAirportIndex(airportNames, airportCount, srcName);
-        int destIndex = findAirportIndex(airportNames, airportCount, destName);
-
-        if (srcIndex == -1 || destIndex == -1) {
-            printf("  Invalid airport code supplied. Please re-enter this route.\n");
-            continue;
+    if (mode >= 1 && mode <= 4) {
+        airportCount = populateSampleScenario(mode, &graph, airportNames, &acceptedRoutes, &scenarioInfo);
+        if (airportCount == 0) {
+            printf("Unable to load the requested sample dataset.\n");
+            freeRouteGraph(&graph);
+            return;
         }
-        if (srcIndex == destIndex) {
-            printf("  Source and destination must be different.\n");
-            continue;
+        printf("\nLoaded sample dataset: %s\n", scenarioInfo->name);
+        printf("%s\n", scenarioInfo->description);
+        printf("Airports: %d  Routes: %d  Directed: %s\n", airportCount, acceptedRoutes, scenarioInfo->directed ? "Yes" : "No");
+    } else if (mode == 5) {
+        printf("Enter number of airports (2-%d): ", MAX_ANALYSIS_AIRPORTS);
+        if (scanf("%d", &airportCount) != 1) {
+            printf("Invalid input detected. Returning to main menu.\n");
+            return;
         }
-        if (weight <= 0.0) {
-            printf("  Weight must be a positive value.\n");
-            continue;
+        if (airportCount < 2 || airportCount > MAX_ANALYSIS_AIRPORTS) {
+            printf("Please choose a value between 2 and %d.\n", MAX_ANALYSIS_AIRPORTS);
+            return;
         }
 
-        if (graph.adjMatrix[srcIndex][destIndex] > weight) {
-            graph.adjMatrix[srcIndex][destIndex] = weight;
+        for (int i = 0; i < airportCount; ++i) {
+            printf("Airport %d code: ", i + 1);
+            scanf("%31s", airportNames[i]);
         }
-        if (!graph.directed && graph.adjMatrix[destIndex][srcIndex] > weight) {
-            graph.adjMatrix[destIndex][srcIndex] = weight;
+        for (int i = airportCount; i < MAX_ANALYSIS_AIRPORTS; ++i) {
+            airportNames[i][0] = '\0';
         }
 
-        ++acceptedRoutes;
-        ++index;
+        int directedInput = 0;
+        printf("Are routes directed? (1 = Yes, 0 = No): ");
+        scanf("%d", &directedInput);
+
+        int routeCount;
+        printf("Enter number of flight routes: ");
+        scanf("%d", &routeCount);
+        if (routeCount <= 0) {
+            printf("At least one route is required for analysis.\n");
+            return;
+        }
+
+        graph = createRouteGraph(airportCount, directedInput ? 1 : 0);
+        acceptedRoutes = 0;
+        for (int index = 0; index < routeCount;) {
+            char srcName[NAME_LEN];
+            char destName[NAME_LEN];
+            double weight;
+            printf("\nRoute %d of %d\n", index + 1, routeCount);
+            printf("  Source airport code: ");
+            scanf("%31s", srcName);
+            printf("  Destination airport code: ");
+            scanf("%31s", destName);
+            printf("  Distance/Cost (positive number): ");
+            scanf("%lf", &weight);
+
+            int srcIndex = findAirportIndex(airportNames, airportCount, srcName);
+            int destIndex = findAirportIndex(airportNames, airportCount, destName);
+
+            if (srcIndex == -1 || destIndex == -1) {
+                printf("  Invalid airport code supplied. Please re-enter this route.\n");
+                continue;
+            }
+            if (srcIndex == destIndex) {
+                printf("  Source and destination must be different.\n");
+                continue;
+            }
+            if (weight <= 0.0) {
+                printf("  Weight must be a positive value.\n");
+                continue;
+            }
+
+            if (graph.adjMatrix[srcIndex][destIndex] > weight) {
+                graph.adjMatrix[srcIndex][destIndex] = weight;
+            }
+            if (!graph.directed && graph.adjMatrix[destIndex][srcIndex] > weight) {
+                graph.adjMatrix[destIndex][srcIndex] = weight;
+            }
+
+            ++acceptedRoutes;
+            ++index;
+        }
+    } else {
+        printf("Unknown selection. Returning to main menu.\n");
+        return;
     }
 
     RouteEdge* undirectedEdges = NULL;

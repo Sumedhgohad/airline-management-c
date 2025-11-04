@@ -53,12 +53,11 @@ typedef struct CheckInNode {
 void addFlight();
 void displayFlights();
 void bookTicket();
-void displayPassengers();
+void displayPassengers(); 
 void enqueueCheckIn(Passenger passenger, int priority);
 void displayCheckInQueue();
 void checkInPassenger();
 void processCheckInQueue();
-void initializeSampleData();
 void mainMenu();
 void analyzeRouteNetwork();
 

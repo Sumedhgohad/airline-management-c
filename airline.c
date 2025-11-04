@@ -617,47 +617,46 @@ static int buildUndirectedEdgeList(const RouteGraph* graph, RouteEdge** edgesOut
 }
 
 static double kruskalMST(const RouteGraph* graph, RouteEdge* edges, int edgeCount, MSTResultEdge* output, int* mstEdgeCount) {
-    if (!graph || !edges || edgeCount <= 0) {
-        *mstEdgeCount = 0;
-        return INF_WEIGHT;
-    }
     int V = graph->vertexCount;
+    int parent[100];
+    int count = 0;
+    double weight = 0;
+    
+    // Sort edges
     qsort(edges, edgeCount, sizeof(RouteEdge), compareRouteEdges);
-    int* parent = (int*)malloc(sizeof(int) * V);
-    int* rank = (int*)calloc(V, sizeof(int));
-    if (!parent || !rank) {
-        free(parent); free(rank);
-        *mstEdgeCount = 0;
-        return INF_WEIGHT;
+    
+    // Initialize
+    for (int i = 0; i < V; i++) {
+        parent[i] = i;
     }
-    for (int i = 0; i < V; ++i) parent[i] = i;
-
-    int added = 0;
-    double total = 0.0;
-    for (int i = 0; i < edgeCount && added < V - 1; ++i) {
+    
+    // Process edges
+    for (int i = 0; i < edgeCount; i++) {
+        
         int u = edges[i].src;
         int v = edges[i].dest;
-        int setU = disjointSetFind(parent, u);
-        int setV = disjointSetFind(parent, v);
-        if (setU != setV) {
-            output[added].src = u;
-            output[added].dest = v;
-            output[added].weight = edges[i].weight;
-            total += edges[i].weight;
-            ++added;
-            disjointSetUnion(parent, rank, setU, setV);
+        
+        // Find root of u
+        int ru = u;
+        while (parent[ru] != ru) ru = parent[ru];
+        
+        // Find root of v
+        int rv = v;
+        while (parent[rv] != rv) rv = parent[rv];
+        
+        // Different roots? Add edge
+        if (ru != rv) {
+            output[count].src = edges[i].src;
+            output[count].dest = edges[i].dest;
+            output[count].weight = edges[i].weight;
+            weight = weight + edges[i].weight;
+            count = count + 1;
+            parent[ru] = rv;
         }
     }
-
-    free(parent);
-    free(rank);
-
-    if (added != V - 1) {
-        *mstEdgeCount = 0;
-        return INF_WEIGHT;
-    }
-    *mstEdgeCount = added;
-    return total;
+    
+    *mstEdgeCount = count;
+    return weight;
 }
 
 static int disjointSetFind(int* parent, int v) {

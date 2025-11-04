@@ -277,7 +277,6 @@ void mainMenu() {
     }
 }
 
-/* Multiple-scenario helpers removed — we use a single built-in demo dataset now. */
 
 void analyzeRouteNetwork() {
     printf("\n=== ROUTE NETWORK ANALYSIS ===\n");
@@ -763,10 +762,3 @@ static void printDistanceMatrix(double** dist, int n, char airportNames[][NAME_L
     }
 }
 
-/* Undirected edge list builder removed (not needed without Kruskal) */
-
-/* dijkstraReweighted removed (used only by Johnson) */
-
-/* Disjoint-set helpers removed (used only by Kruskal) */
-
-/* Edge comparator removed (used only by Kruskal) */

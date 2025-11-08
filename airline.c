@@ -617,6 +617,7 @@ static int buildUndirectedEdgeList(const RouteGraph* graph, RouteEdge** edgesOut
 }
 
 static double kruskalMST(const RouteGraph* graph, RouteEdge* edges, int edgeCount, MSTResultEdge* output, int* mstEdgeCount) {
+<<<<<<< HEAD
     if (!graph || !edges || edgeCount <= 0) {
         *mstEdgeCount = 0;
         return INF_WEIGHT;
@@ -658,6 +659,48 @@ static double kruskalMST(const RouteGraph* graph, RouteEdge* edges, int edgeCoun
     }
     *mstEdgeCount = added;
     return total;
+=======
+    int V = graph->vertexCount;
+    int parent[100];
+    int count = 0;
+    double weight = 0;
+    
+    // Sort edges
+    qsort(edges, edgeCount, sizeof(RouteEdge), compareRouteEdges);
+    
+    // Initialize
+    for (int i = 0; i < V; i++) {
+        parent[i] = i;
+    }
+    
+    // Process edges
+    for (int i = 0; i < edgeCount; i++) {
+        
+        int u = edges[i].src;
+        int v = edges[i].dest;
+        
+        // Find root of u
+        int ru = u;
+        while (parent[ru] != ru) ru = parent[ru];
+        
+        // Find root of v
+        int rv = v;
+        while (parent[rv] != rv) rv = parent[rv];
+        
+        // Different roots? Add edge
+        if (ru != rv) {
+            output[count].src = edges[i].src;
+            output[count].dest = edges[i].dest;
+            output[count].weight = edges[i].weight;
+            weight = weight + edges[i].weight;
+            count = count + 1;
+            parent[ru] = rv;
+        }
+    }
+    
+    *mstEdgeCount = count;
+    return weight;
+>>>>>>> 5dadd2e6d50d546702c82df528c2c15167002e47
 }
 
 static int disjointSetFind(int* parent, int v) {

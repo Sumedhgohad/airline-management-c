@@ -175,9 +175,7 @@ void enqueueCheckIn(Passenger passenger, int priority) {
     newNode->priority = priority;
     time_t now = time(0);
     strcpy(newNode->checkInTime, ctime(&now));
-    newNode->next=
-    
-    NULL;
+    newNode->next= NULL;
     if (!checkInFront) {
         checkInFront = checkInRear = newNode;
     } else if (priority == 1) {
@@ -278,6 +276,7 @@ void mainMenu() {
 }
 
 
+/* Multiple-scenario helpers removed — we use a single built-in demo dataset now. */
 void analyzeRouteNetwork() {
     printf("\n=== ROUTE NETWORK ANALYSIS ===\n");
     printf("Using built-in demo dataset: Regional shuttle circuit (small)\n");
@@ -516,67 +515,62 @@ static int findAirportIndex(char airportNames[][NAME_LEN], int count, const char
 }
 
 static double primMST(const RouteGraph* graph, MSTResultEdge* output, int* edgeCount) {
-    if (!graph || !graph->adjMatrix || graph->vertexCount <= 1) {
-        *edgeCount = 0;
-        return INF_WEIGHT;
-    }
     int V = graph->vertexCount;
+    
     double* key = (double*)malloc(sizeof(double) * V);
     int* parent = (int*)malloc(sizeof(int) * V);
     bool* inMST = (bool*)malloc(sizeof(bool) * V);
-    if (!key || !parent || !inMST) {
-        free(key); free(parent); free(inMST);
-        *edgeCount = 0;
-        return INF_WEIGHT;
-    }
-    for (int i = 0; i < V; ++i) {
+    
+    // Initialize arrays
+    for (int i = 0; i < V; i++) {
         key[i] = INF_WEIGHT;
         parent[i] = -1;
         inMST[i] = false;
     }
-    key[0] = 0.0;
-
-    for (int count = 0; count < V - 1; ++count) {
+    
+    key[0] = 0.0;  // Start from vertex 0
+    
+    // Build MST
+    for (int count = 0; count < V - 1; count++) {
+        // Find minimum key vertex not in MST
         double min = INF_WEIGHT;
         int u = -1;
-        for (int v = 0; v < V; ++v) {
-            if (!inMST[v] && key[v] < min) {
+        for (int v = 0; v < V; v++) {
+            if (inMST[v] == false && key[v] < min) {
                 min = key[v];
                 u = v;
             }
         }
-        if (u == -1) {
-            free(key); free(parent); free(inMST);
-            *edgeCount = 0;
-            return INF_WEIGHT;
-        }
+        
         inMST[u] = true;
-        for (int v = 0; v < V; ++v) {
+        
+        // Update keys of adjacent vertices
+        for (int v = 0; v < V; v++) {
             double weight = graph->adjMatrix[u][v];
-            if (!inMST[v] && weight < key[v]) {
+            if (inMST[v] == false && weight < key[v]) {
                 key[v] = weight;
                 parent[v] = u;
             }
         }
     }
-
+    
+    // Build output and calculate total weight
     double total = 0.0;
     int idx = 0;
-    for (int v = 1; v < V; ++v) {
-        if (parent[v] == -1 || graph->adjMatrix[parent[v]][v] >= INF_WEIGHT / 2.0) {
-            free(key); free(parent); free(inMST);
-            *edgeCount = 0;
-            return INF_WEIGHT;
-        }
+    for (int v = 1; v < V; v++) {
         output[idx].src = parent[v];
         output[idx].dest = v;
         output[idx].weight = graph->adjMatrix[parent[v]][v];
         total += output[idx].weight;
-        ++idx;
+        idx++;
     }
-
+    
     *edgeCount = idx;
-    free(key); free(parent); free(inMST);
+    
+    free(key);
+    free(parent);
+    free(inMST);
+    
     return total;
 }
 
@@ -616,47 +610,46 @@ static int buildUndirectedEdgeList(const RouteGraph* graph, RouteEdge** edgesOut
 }
 
 static double kruskalMST(const RouteGraph* graph, RouteEdge* edges, int edgeCount, MSTResultEdge* output, int* mstEdgeCount) {
-    if (!graph || !edges || edgeCount <= 0) {
-        *mstEdgeCount = 0;
-        return INF_WEIGHT;
-    }
     int V = graph->vertexCount;
+    int parent[100];
+    int count = 0;
+    double weight = 0;
+    
+    // Sort edges
     qsort(edges, edgeCount, sizeof(RouteEdge), compareRouteEdges);
-    int* parent = (int*)malloc(sizeof(int) * V);
-    int* rank = (int*)calloc(V, sizeof(int));
-    if (!parent || !rank) {
-        free(parent); free(rank);
-        *mstEdgeCount = 0;
-        return INF_WEIGHT;
+    
+    // Initialize
+    for (int i = 0; i < V; i++) {
+        parent[i] = i;
     }
-    for (int i = 0; i < V; ++i) parent[i] = i;
-
-    int added = 0;
-    double total = 0.0;
-    for (int i = 0; i < edgeCount && added < V - 1; ++i) {
+    
+    // Process edges
+    for (int i = 0; i < edgeCount; i++) {
+        
         int u = edges[i].src;
         int v = edges[i].dest;
-        int setU = disjointSetFind(parent, u);
-        int setV = disjointSetFind(parent, v);
-        if (setU != setV) {
-            output[added].src = u;
-            output[added].dest = v;
-            output[added].weight = edges[i].weight;
-            total += edges[i].weight;
-            ++added;
-            disjointSetUnion(parent, rank, setU, setV);
+        
+        // Find root of u
+        int ru = u;
+        while (parent[ru] != ru) ru = parent[ru];
+        
+        // Find root of v
+        int rv = v;
+        while (parent[rv] != rv) rv = parent[rv];
+        
+        // Different roots? Add edge
+        if (ru != rv) {
+            output[count].src = edges[i].src;
+            output[count].dest = edges[i].dest;
+            output[count].weight = edges[i].weight;
+            weight = weight + edges[i].weight;
+            count = count + 1;
+            parent[ru] = rv;
         }
     }
-
-    free(parent);
-    free(rank);
-
-    if (added != V - 1) {
-        *mstEdgeCount = 0;
-        return INF_WEIGHT;
-    }
-    *mstEdgeCount = added;
-    return total;
+    
+    *mstEdgeCount = count;
+    return weight;
 }
 
 static int disjointSetFind(int* parent, int v) {
@@ -741,7 +734,6 @@ static int floydWarshallAllPairs(const RouteGraph* graph, double** distOut) {
     return 0;
 }
 
-/* Johnson removed to simplify the program (keep Floyd-Warshall only) */
 
 static void printDistanceMatrix(double** dist, int n, char airportNames[][NAME_LEN]) {
     printf("%-12s", " ");
@@ -761,4 +753,3 @@ static void printDistanceMatrix(double** dist, int n, char airportNames[][NAME_L
         printf("\n");
     }
 }
-
